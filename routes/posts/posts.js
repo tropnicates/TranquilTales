@@ -11,7 +11,7 @@ const {
 const protectedRoute = require('../../middlewares/protected');
 
 const postRoutes = express.Router();
-const upload = multer({ storage });
+const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
 postRoutes.get('/', fetchPostsCtrl);
 postRoutes.post('/', protectedRoute, upload.single('file'), createPostCtrl);

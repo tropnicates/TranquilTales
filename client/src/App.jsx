@@ -21,12 +21,23 @@ const categories = [
 function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const navigate = useNavigate();
 
   const refreshUser = useCallback(async () => {
     const result = await request('/users/session');
     setUser(result.data.user);
     return result.data.user;
   }, []);
+
+  useEffect(() => {
+    const handleExpiredSession = () => {
+      setUser(null);
+      navigate('/login', { replace: true });
+    };
+
+    window.addEventListener('auth:expired', handleExpiredSession);
+    return () => window.removeEventListener('auth:expired', handleExpiredSession);
+  }, [navigate]);
 
   useEffect(() => {
     refreshUser()
@@ -580,7 +591,15 @@ function ProfileSettings({ onUpdated }) {
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
-    request('/users/session').then(result => setUser(result.data.user)).catch(err => setError(err.message));
+    request('/users/session')
+      .then(result => {
+        if (!result.data.user) {
+          window.dispatchEvent(new Event('auth:expired'));
+          return;
+        }
+        setUser(result.data.user);
+      })
+      .catch(err => setError(err.message));
   }, []);
 
   const submit = async event => {

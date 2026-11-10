@@ -4,7 +4,7 @@ TranquilTales is a blog app with an Express JSON API and a React single-page fro
 
 ## Requirements
 
-- Node.js 18 or newer
+- Node.js 24 (also pinned by `.node-version` and required by `package.json`)
 - MongoDB
 - Cloudinary credentials for image uploads
 
@@ -36,6 +36,7 @@ The initial Blueprint creates the Render service. Later deployments are delibera
 For an existing Render service, make sure its **Branch** is `release-final`, its **Build Command** is `npm ci && npm run build`, and its **Start Command** is `npm start`. The repository pins Node.js 24 for Render and CI. If a deploy reports `vite: not found`, redeploy the latest commit after confirming the service is using this branch and build command.
 
 This app uses MongoDB for persistent user/post/comment data and Cloudinary for uploaded images. Render's free web service can sleep, but the MongoDB and Cloudinary accounts are separate services with their own limits and terms.
+Image uploads are limited to 5 MB and accept JPEG or PNG files.
 
 More information: [Render Blueprints](https://render.com/docs/blueprint-spec), [Render deploy hooks](https://render.com/docs/deploy-hooks), [GitHub Actions secrets](https://docs.github.com/actions/security-guides/using-secrets-in-github-actions), and [MongoDB Atlas](https://www.mongodb.com/atlas).
 

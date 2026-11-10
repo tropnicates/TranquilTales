@@ -5,9 +5,21 @@ export async function request(path, options = {}) {
     credentials: 'include',
     ...options,
   });
-  const body = await response.json();
+  let body;
+  try {
+    body = await response.json();
+  } catch {
+    throw new Error('The server returned an invalid response. Please try again.');
+  }
 
   if (!response.ok) {
+    if (
+      response.status === 401 &&
+      path !== '/users/login' &&
+      path !== '/users/register'
+    ) {
+      window.dispatchEvent(new Event('auth:expired'));
+    }
     throw new Error(body.message || 'The request could not be completed');
   }
   return body;

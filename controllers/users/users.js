@@ -8,6 +8,23 @@ const publicUser = user => {
   return result;
 };
 
+const establishSession = (req, userId) =>
+  new Promise((resolve, reject) => {
+    req.session.regenerate(error => {
+      if (error) {
+        return reject(error);
+      }
+
+      req.session.userAuth = userId.toString();
+      req.session.save(saveError => {
+        if (saveError) {
+          return reject(saveError);
+        }
+        resolve();
+      });
+    });
+  });
+
 const registerCtrl = async (req, res, next) => {
   try {
     const { fullname, email, password } = req.body;
@@ -26,7 +43,7 @@ const registerCtrl = async (req, res, next) => {
       password: await bcrypt.hash(password, 10),
       ...(req.file && { profileImage: req.file.path }),
     });
-    req.session.userAuth = user._id.toString();
+    await establishSession(req, user._id);
     res.status(201).json({ status: 'success', data: { user: publicUser(user) } });
   } catch (error) {
     next(error);
@@ -45,7 +62,7 @@ const loginCtrl = async (req, res, next) => {
       return next(appErr('Invalid email or password', 401));
     }
 
-    req.session.userAuth = user._id.toString();
+    await establishSession(req, user._id);
     res.json({ status: 'success', data: { user: publicUser(user) } });
   } catch (error) {
     next(error);
