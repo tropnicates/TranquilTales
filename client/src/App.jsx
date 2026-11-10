@@ -357,7 +357,7 @@ function PostEditor() {
         </label>
         <label className="field">
           <span>{editing ? 'Replace cover image (optional)' : 'Cover image'}</span>
-          <input type="file" name="file" accept="image/png,image/jpeg,image/webp" required={!editing} />
+          <input type="file" name="file" accept="image/png,image/jpeg" required={!editing} />
         </label>
         {post?.image ? <img className="image-preview" src={post.image} alt="Current post cover" /> : null}
         <button className="button button-primary" disabled={busy}>
@@ -665,7 +665,7 @@ function ImageSettings({ onUpdated }) {
     >
       <label className="field">
         <span>Select an image</span>
-        <input type="file" name="profile" accept="image/png,image/jpeg,image/webp" required />
+        <input type="file" name="profile" accept="image/png,image/jpeg" required />
       </label>
       <button className="button button-primary">Upload image</button>
     </SettingsForm>
