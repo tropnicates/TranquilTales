@@ -33,6 +33,8 @@ The included `render.yaml` configures one Render web service for both the React 
 
 The initial Blueprint creates the Render service. Later deployments are deliberately triggered by the GitHub Actions workflow after validation, rather than automatically on every Git push. If the GitHub secret is not set yet, validation still runs and the deploy step reports that deployment was skipped.
 
+For an existing Render service, make sure its **Branch** is `release-final`, its **Build Command** is `npm ci && npm run build`, and its **Start Command** is `npm start`. The repository pins Node.js 24 for Render and CI. If a deploy reports `vite: not found`, redeploy the latest commit after confirming the service is using this branch and build command.
+
 This app uses MongoDB for persistent user/post/comment data and Cloudinary for uploaded images. Render's free web service can sleep, but the MongoDB and Cloudinary accounts are separate services with their own limits and terms.
 
 More information: [Render Blueprints](https://render.com/docs/blueprint-spec), [Render deploy hooks](https://render.com/docs/deploy-hooks), [GitHub Actions secrets](https://docs.github.com/actions/security-guides/using-secrets-in-github-actions), and [MongoDB Atlas](https://www.mongodb.com/atlas).

@@ -4,6 +4,9 @@
   "private": true,
   "description": "A full-stack blog built with Express, React, and Vite",
   "main": "server.js",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "start": "node server.js",
     "server": "nodemon server.js",
@@ -23,11 +26,11 @@
     "multer-storage-cloudinary": "^4.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.30.1"
+    "react-router-dom": "^6.30.1",
+    "vite": "^6.1.0"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
-    "nodemon": "^2.0.20",
-    "vite": "^6.1.0"
+    "nodemon": "^2.0.20"
   }
 }
