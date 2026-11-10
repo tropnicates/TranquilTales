@@ -1,101 +1,101 @@
-const Comment = require("../../models/comment/comment");
-const Post = require("../../models/post/Post");
-const User = require("../../models/user/User");
-const appErr = require("../../utils/appErr");
-//create
+const Comment = require('../../models/comment/comment');
+const Post = require('../../models/post/Post');
+const User = require('../../models/user/User');
+const appErr = require('../../utils/appErr');
+
 const createCommentCtrl = async (req, res, next) => {
-  const { message } = req.body;
   try {
-    //Find the post
+    const message = req.body.message?.trim();
+    if (!message) {
+      return next(appErr('Comment message is required', 400));
+    }
+
     const post = await Post.findById(req.params.id);
-    //create the comment
+    if (!post) {
+      return next(appErr('Post not found', 404));
+    }
+    const user = await User.findById(req.session.userAuth);
+    if (!user) {
+      return next(appErr('User not found', 404));
+    }
+
     const comment = await Comment.create({
-      user: req.session.userAuth,
+      user: user._id,
       message,
       post: post._id,
     });
-    //push the comment to post
     post.comments.push(comment._id);
-    //find the user
-    const user = await User.findById(req.session.userAuth);
-    //push the comment into
     user.comments.push(comment._id);
-    //disable validation
-    //save
-    await post.save({ validateBeforeSave: false });
-    await user.save({ validateBeforeSave: false });
-    console.log(post);
-    //redirect
-    res.redirect(`/api/v1/posts/${post._id}`);
+    await Promise.all([
+      post.save({ validateBeforeSave: false }),
+      user.save({ validateBeforeSave: false }),
+    ]);
+
+    const populatedComment = await comment.populate({
+      path: 'user',
+      select: 'fullname profileImage',
+    });
+    res.status(201).json({ status: 'success', data: { comment: populatedComment } });
   } catch (error) {
-    next(appErr(error));
+    next(error);
   }
 };
 
-//single
 const commentDetailsCtrl = async (req, res, next) => {
   try {
-    const comment = await Comment.findById(req.params.id);
-    res.render("comments/updateComment", {
-      comment,
-      error: "",
+    const comment = await Comment.findById(req.params.id).populate({
+      path: 'user',
+      select: 'fullname profileImage',
     });
-    console.log("comment", comment);
-  } catch (error) {
-    res.render("comments/updateComment", {
-      error: error.message,
-    });
-  }
-};
-
-//delete
-const deleteCommentCtrl = async (req, res, next) => {
-  console.log(req.query.postId);
-  try {
-    //find the comment
-    const comment = await Comment.findById(req.params.id);
-    //check if the comment belongs to the user
-    if (comment.user.toString() !== req.session.userAuth.toString()) {
-      return next(appErr("You are not allowed to delete this comment", 403));
-    }
-    //delete comment
-    await Comment.findByIdAndDelete(req.params.id);
-    //redirect
-    res.redirect(`/api/v1/posts/${req.query.postId}`);
-  } catch (error) {
-    next(appErr(error));
-  }
-};
-
-//Update
-const upddateCommentCtrl = async (req, res, next) => {
-  try {
-    console.log("query", req.query);
-    //find the comment
-    const comment = await Comment.findById(req.params.id);
-
     if (!comment) {
-      return next(appErr("Comment Not Found"));
+      return next(appErr('Comment not found', 404));
     }
-    //check if the post belongs to the user
-    if (comment.user.toString() !== req.session.userAuth.toString()) {
-      return next(appErr("You are not allowed to update this comment", 403));
-    }
-    //update
-    const commentUpdated = await Comment.findByIdAndUpdate(
-      req.params.id,
-      {
-        message: req.body.message,
-      },
-      {
-        new: true,
-      }
-    );
-
-    //redirect
-    res.redirect(`/api/v1/posts/${req.query.postId}`);
+    res.json({ status: 'success', data: { comment } });
   } catch (error) {
-    next(appErr(error));
+    next(error);
+  }
+};
+
+const deleteCommentCtrl = async (req, res, next) => {
+  try {
+    const comment = await Comment.findById(req.params.id);
+    if (!comment) {
+      return next(appErr('Comment not found', 404));
+    }
+    if (comment.user.toString() !== req.session.userAuth.toString()) {
+      return next(appErr('You are not allowed to delete this comment', 403));
+    }
+
+    await Promise.all([
+      Post.findByIdAndUpdate(comment.post, { $pull: { comments: comment._id } }),
+      User.findByIdAndUpdate(comment.user, { $pull: { comments: comment._id } }),
+      Comment.findByIdAndDelete(comment._id),
+    ]);
+    res.json({ status: 'success', message: 'Comment deleted' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateCommentCtrl = async (req, res, next) => {
+  try {
+    const message = req.body.message?.trim();
+    if (!message) {
+      return next(appErr('Comment message is required', 400));
+    }
+    const comment = await Comment.findById(req.params.id);
+    if (!comment) {
+      return next(appErr('Comment not found', 404));
+    }
+    if (comment.user.toString() !== req.session.userAuth.toString()) {
+      return next(appErr('You are not allowed to update this comment', 403));
+    }
+
+    comment.message = message;
+    await comment.save();
+    res.json({ status: 'success', data: { comment } });
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -103,5 +103,5 @@ module.exports = {
   createCommentCtrl,
   commentDetailsCtrl,
   deleteCommentCtrl,
-  upddateCommentCtrl,
+  updateCommentCtrl,
 };

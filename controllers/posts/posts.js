@@ -1,147 +1,110 @@
-const Post = require("../../models/post/Post");
-const User = require("../../models/user/User");
-const appErr = require("../../utils/appErr");
-//create
+const Post = require('../../models/post/Post');
+const User = require('../../models/user/User');
+const Comment = require('../../models/comment/comment');
+const appErr = require('../../utils/appErr');
+
 const createPostCtrl = async (req, res, next) => {
-  const { title, description, category, user } = req.body;
   try {
+    const { title, description, category } = req.body;
     if (!title || !description || !category || !req.file) {
-      return res.render("posts/addPost", { error: "All fields are required" });
+      return next(appErr('Title, description, category, and image are required', 400));
     }
-    //Find the user
-    const userId = req.session.userAuth;
-    const userFound = await User.findById(userId);
-    //Create the post
-    const postCreated = await Post.create({
+
+    const user = await User.findById(req.session.userAuth);
+    if (!user) {
+      return next(appErr('User not found', 404));
+    }
+
+    const post = await Post.create({
       title,
       description,
       category,
-      user: userFound._id,
+      user: user._id,
       image: req.file.path,
     });
-    //push the post created into the array of user's posts
-    userFound.posts.push(postCreated._id);
-    //re save
-    await userFound.save();
-    //redirect
-    res.redirect("/");
+    user.posts.push(post._id);
+    await user.save();
+    const populatedPost = await post.populate({ path: 'user', select: 'fullname profileImage' });
+    res.status(201).json({ status: 'success', data: { post: populatedPost } });
   } catch (error) {
-    return res.render("posts/addPost", { error: error.message });
+    next(error);
   }
 };
 
-//all
 const fetchPostsCtrl = async (req, res, next) => {
   try {
-    const posts = await Post.find().populate("comments").populate("user");
-    res.json({
-      status: "success",
-      data: posts,
-    });
-    console.log(posts);
+    const posts = await Post.find()
+      .sort({ createdAt: -1 })
+      .populate({ path: 'user', select: 'fullname profileImage' });
+    res.json({ status: 'success', data: { posts } });
   } catch (error) {
-    next(appErr(error.message));
+    next(error);
   }
 };
 
-//details
 const fetchPostCtrl = async (req, res, next) => {
   try {
-    //get the id from params
-    const id = req.params.id;
-    //find the post
-    const post = await Post.findById(id)
+    const post = await Post.findById(req.params.id)
+      .populate({ path: 'user', select: 'fullname profileImage role bio' })
       .populate({
-        path: "comments",
-        populate: {
-          path: "user",
-        },
-      })
-      .populate("user");
-    res.render("posts/postDetails", {
-      post,
-      error: "",
-    });
+        path: 'comments',
+        populate: { path: 'user', select: 'fullname profileImage' },
+      });
+    if (!post) {
+      return next(appErr('Post not found', 404));
+    }
+    res.json({ status: 'success', data: { post } });
   } catch (error) {
-    next(appErr(error.message));
+    next(error);
   }
 };
 
-//delete
 const deletePostCtrl = async (req, res, next) => {
   try {
-    //find the post
     const post = await Post.findById(req.params.id);
-    //check if the post belongs to the user
-    if (post.user.toString() !== req.session.userAuth.toString()) {
-      return res.render("posts/postDetails", {
-        error: "You are not authorized to delete this post",
-        post,
-      });
+    if (!post) {
+      return next(appErr('Post not found', 404));
     }
-    //delete post
-    await Post.findByIdAndDelete(req.params.id);
-    //redirect
-    res.redirect("/");
+    if (post.user.toString() !== req.session.userAuth.toString()) {
+      return next(appErr('You are not authorized to delete this post', 403));
+    }
+
+    await Comment.deleteMany({ post: post._id });
+    await User.findByIdAndUpdate(post.user, { $pull: { posts: post._id } });
+    await Post.findByIdAndDelete(post._id);
+    res.json({ status: 'success', message: 'Post deleted' });
   } catch (error) {
-    return res.render("posts/postDetails", {
-      error: error.message,
-      post: "",
-    });
+    next(error);
   }
 };
 
-//update
 const updatepostCtrl = async (req, res, next) => {
-  const { title, description, category } = req.body;
   try {
-    //find the post
     const post = await Post.findById(req.params.id);
-    //check if the post belongs to the user
-    if (post.user.toString() !== req.session.userAuth.toString()) {
-      return res.render("posts/updatePost", {
-        post: "",
-        error: "You are not authorized to update this post",
-      });
+    if (!post) {
+      return next(appErr('Post not found', 404));
     }
-    //check if user is updating image
-    if (req.file) {
-      await Post.findByIdAndUpdate(
-        req.params.id,
-        {
-          title,
-          description,
-          category,
-          image: req.file.path,
-        },
-        {
-          new: true,
-        }
-      );
-    } else {
-      //update
-      await Post.findByIdAndUpdate(
-        req.params.id,
-        {
-          title,
-          description,
-          category,
-        },
-        {
-          new: true,
-        }
-      );
+    if (post.user.toString() !== req.session.userAuth.toString()) {
+      return next(appErr('You are not authorized to update this post', 403));
     }
 
-    //redirect
-    res.redirect("/");
+    const { title, description, category } = req.body;
+    const updatedPost = await Post.findByIdAndUpdate(
+      req.params.id,
+      {
+        title,
+        description,
+        category,
+        ...(req.file && { image: req.file.path }),
+      },
+      { new: true, runValidators: true }
+    ).populate({ path: 'user', select: 'fullname profileImage' });
+    res.json({ status: 'success', data: { post: updatedPost } });
   } catch (error) {
-    return res.render("posts/updatePost", {
-      post: "",
-      error: error.message,
-    });
+    next(error);
   }
 };
+
 module.exports = {
   createPostCtrl,
   fetchPostsCtrl,

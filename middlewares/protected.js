@@ -1,11 +1,11 @@
-const appErr = require("../utils/appErr");
-
 const protected = (req, res, next) => {
-  //check if user is login
-  if (req.session.userAuth) {
-    next();
-  } else {
-    res.render("users/notAuthorize");
+  if (!req.session.userAuth) {
+    return res.status(401).json({
+      status: 'fail',
+      message: 'Please log in to continue',
+    });
   }
+
+  next();
 };
 module.exports = protected;
